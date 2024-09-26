@@ -1,101 +1,299 @@
-import Image from "next/image";
+"use client";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import "../../i18n";
+import scoringData from "../JSON files/Updated MVP Scoring System.json";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { t, i18n } = useTranslation();
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<any>({});
+  const [pairAnswers, setPairAnswers] = useState<any>({});
+  const [showResults, setShowResults] = useState(false);
+  const [career, setCareer] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  const [userResult, setUserResult] = useState({
+    data_analyst: 0,
+    software_developer: 0,
+    project_manager: 0,
+    ux_ui_designer: 0,
+  });
+
+  const questions: any = t("questions", { returnObjects: true });
+
+  const handleNext = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleRadioChange = (
+    questionIndex: number,
+    selectedOption: string,
+    pairId?: string,
+    questionId?: string
+  ) => {
+    if (pairId) {
+      setPairAnswers((prevPairAnswers: any) => {
+        const previousOption = prevPairAnswers[pairId];
+        const pairScoring: any =
+          scoringData.scoring.comparison_pairs[
+            pairId as keyof typeof scoringData.scoring.comparison_pairs
+          ];
+        const selectedScores = pairScoring[selectedOption === "a" ? "a" : "b"];
+        const previousScores = previousOption
+          ? pairScoring[previousOption === "a" ? "a" : "b"]
+          : null;
+
+        setUserResult((prevUserResult) => {
+          const updatedResult = { ...prevUserResult };
+          if (previousScores) {
+            updatedResult.data_analyst -= previousScores.data_analyst;
+            updatedResult.project_manager -= previousScores.project_manager;
+            updatedResult.software_developer -=
+              previousScores.software_developer;
+            updatedResult.ux_ui_designer -= previousScores.ux_ui_designer;
+          }
+          if (selectedScores) {
+            updatedResult.data_analyst += selectedScores.data_analyst;
+            updatedResult.project_manager += selectedScores.project_manager;
+            updatedResult.software_developer +=
+              selectedScores.software_developer;
+            updatedResult.ux_ui_designer += selectedScores.ux_ui_designer;
+          }
+          return updatedResult;
+        });
+        return {
+          ...prevPairAnswers,
+          [pairId]: selectedOption,
+        };
+      });
+    } else {
+      if (questionId) {
+        const currentCategory = (scoringData as any)?.scoring[questionId];
+        if (currentCategory) {
+          const currentScore = currentCategory[selectedOption];
+          const previousOption = answers[questionIndex];
+          if (previousOption) {
+            const previousScore = currentCategory[previousOption];
+            if (previousScore) {
+              setUserResult((prevUserResult) => ({
+                data_analyst:
+                  prevUserResult.data_analyst - previousScore.data_analyst,
+                project_manager:
+                  prevUserResult.project_manager -
+                  previousScore.project_manager,
+                software_developer:
+                  prevUserResult.software_developer -
+                  previousScore.software_developer,
+                ux_ui_designer:
+                  prevUserResult.ux_ui_designer - previousScore.ux_ui_designer,
+              }));
+            }
+          }
+          if (currentScore) {
+            setUserResult((prevUserResult) => ({
+              data_analyst:
+                prevUserResult.data_analyst + currentScore.data_analyst,
+              project_manager:
+                prevUserResult.project_manager + currentScore.project_manager,
+              software_developer:
+                prevUserResult.software_developer +
+                currentScore.software_developer,
+              ux_ui_designer:
+                prevUserResult.ux_ui_designer + currentScore.ux_ui_designer,
+            }));
+          }
+        }
+        setAnswers((prevAnswers: any) => ({
+          ...prevAnswers,
+          [questionIndex]: selectedOption,
+        }));
+      }
+    }
+  };
+
+  const changeLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+  };
+
+  const handleSubmit = () => {
+    const resultEntries = Object.entries(userResult);
+    const [recommendedCareer] = resultEntries.reduce(
+      (maxEntry, currentEntry) => {
+        return currentEntry[1] > maxEntry[1] ? currentEntry : maxEntry;
+      }
+    );
+    setCareer(recommendedCareer);
+    setShowResults(true);
+  };
+
+  const handleNewQuiz = () => {
+    setShowResults(false);
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setPairAnswers({});
+    setUserResult({
+      data_analyst: 0,
+      software_developer: 0,
+      project_manager: 0,
+      ux_ui_designer: 0,
+    });
+    setCareer("");
+  };
+
+  const question = questions[currentQuestionIndex];
+
+  return (
+    <div className="flex flex-col items-center mt-10 px-4 w-full">
+      <h1 className="text-3xl font-bold">{t("title")}</h1>
+      <div className="flex gap-x-3 justify-center items-center mt-8">
+        <button
+          onClick={() => changeLanguage("en")}
+          className="bg-gray-700 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          English
+        </button>
+        <button
+          onClick={() => changeLanguage("ru")}
+          className="bg-gray-700 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Russian
+        </button>
+        <button
+          onClick={() => changeLanguage("et")}
+          className="bg-gray-700 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Estonian
+        </button>
+      </div>
+
+      <div className="w-full max-w-xl mt-10 bg-white p-6 rounded-lg shadow-lg">
+        {showResults ? (
+          <div>
+            <h2 className="text-xl font-bold mb-4">
+              {t("recommended_career")}
+            </h2>
+            <div className="flex flex-col gap-2">
+              <p>{t(career)}</p>
+              <button
+                className="bg-gray-700 h-[40px] w-fit mt-4 hover:bg-gray-500 text-white font-bold py-2 px-2 rounded"
+                onClick={handleNewQuiz}
+              >
+                {t("back_to_quiz")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col w-full">
+              <h2 className="text-xl mb-4">{question.question}</h2>
+
+              {question.options && (
+                <div className="flex flex-col gap-2">
+                  {question.options.map((option: string, index: number) => (
+                    <div key={index} className="flex items-center">
+                      <input
+                        type="radio"
+                        id={`option-${index}`}
+                        name={`question-${currentQuestionIndex}`}
+                        value={option}
+                        checked={answers[currentQuestionIndex] === option}
+                        onChange={() =>
+                          handleRadioChange(
+                            currentQuestionIndex,
+                            option,
+                            undefined,
+                            question.id
+                          )
+                        }
+                        className="mr-2 cursor-pointer accent-gray-500"
+                      />
+                      <label htmlFor={`option-${index}`}>{option}</label>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {question.pairs && (
+                <div className="flex flex-col gap-2">
+                  {question.pairs.map((pair: any, index: number) => (
+                    <div key={index} className="flex flex-col">
+                      <p className="font-bold text-[15px] text-center mb-3 mt-3">
+                        {pair.id}
+                      </p>
+                      <div className="flex gap-x-3 items-center">
+                        <input
+                          type="radio"
+                          id={`pair-a-${index}`}
+                          name={`pair-${pair.id}`}
+                          value={pair.a}
+                          checked={pairAnswers[pair.id] === pair.a}
+                          onChange={() =>
+                            handleRadioChange(
+                              currentQuestionIndex,
+                              pair.a,
+                              pair.id
+                            )
+                          }
+                          className="cursor-pointer accent-gray-500"
+                        />
+                        <label htmlFor={`pair-a-${index}`}>{pair.a}</label>
+                        <input
+                          type="radio"
+                          id={`pair-b-${index}`}
+                          name={`pair-${pair.id}`}
+                          value={pair.b}
+                          checked={pairAnswers[pair.id] === pair.b}
+                          onChange={() =>
+                            handleRadioChange(
+                              currentQuestionIndex,
+                              pair.b,
+                              pair.id
+                            )
+                          }
+                          className="cursor-pointer accent-gray-500"
+                        />
+                        <label htmlFor={`pair-b-${index}`}>{pair.b}</label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-x-3 justify-between mt-6">
+              <button
+                className="bg-gray-700 h-[40px] w-fit hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
+                onClick={handlePrevious}
+                disabled={currentQuestionIndex === 0}
+              >
+                {t("previous")}
+              </button>
+              {currentQuestionIndex === questions.length - 1 ? (
+                <button
+                  className="bg-gray-700 h-[40px] w-fit hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleSubmit}
+                >
+                  {t("submit")}
+                </button>
+              ) : (
+                <button
+                  className="bg-gray-700 h-[40px] w-fit hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleNext}
+                  disabled={currentQuestionIndex === questions.length - 1}
+                >
+                  {t("next")}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
